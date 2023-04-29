@@ -1,3 +1,4 @@
+#![no_std]
 #[cfg(feature = "buddy-alloc")]
 mod alloc;
 mod wasm4;
@@ -28,4 +29,9 @@ fn update() {
     unsafe {
         WORLD.as_mut().unwrap().draw();
     }
+}
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    loop {}
 }

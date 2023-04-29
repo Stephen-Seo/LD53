@@ -139,6 +139,10 @@ pub fn text<T: AsRef<[u8]>>(text: T, x: i32, y: i32) {
     let text_ref = text.as_ref();
     unsafe { extern_text(text_ref.as_ptr(), text_ref.len(), x, y) }
 }
+pub fn custom_text<T: AsRef<[u8]>>(text: T, len: usize, x: i32, y: i32) {
+    let text_ref = text.as_ref();
+    unsafe { extern_text(text_ref.as_ptr(), len, x, y) }
+}
 extern "C" {
     #[link_name = "textUtf8"]
     fn extern_text(text: *const u8, length: usize, x: i32, y: i32);

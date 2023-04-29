@@ -1,10 +1,11 @@
 use crate::sprites::*;
 use tinyrand::{Rand, StdRand};
+use crate::helpers::round_f32_to_i32;
 
 const CAR_ANIM_FRAMES: u8 = 10;
 const MOVE_RATE: f32 = 1f32;
-const MULTIPLIER_INC_RATE: f32 = 0.04f32;
-const HOUSE_FRAMES: u32 = 180;
+const MULTIPLIER_INC_RATE: f32 = 0.07f32;
+const HOUSE_FRAMES: u32 = 150;
 const HOUSE_RANGE: f32 = 90f32;
 
 pub struct World {
@@ -23,6 +24,7 @@ pub struct World {
     score: u64,
     rate_multiplier: f32,
     status_text: Option<(&'static str, u32)>,
+    str_buf: [u8; 16],
 }
 
 impl World {
@@ -39,6 +41,7 @@ impl World {
             score: 0,
             rate_multiplier: 1f32,
             status_text: None,
+            str_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         }
     }
 
@@ -133,7 +136,7 @@ impl World {
 
         crate::rect(-5, 120, 170, 5);
 
-        let mut x = -5 + self.street_offset.round() as i32;
+        let mut x = -5 + round_f32_to_i32(self.street_offset);
         while x < 170 {
             crate::rect(x, 140, 30, 5);
             x += 45;
@@ -147,8 +150,8 @@ impl World {
             if let Some((x, y)) = shrub {
                 crate::blit(
                     &PLANT,
-                    x.round() as i32,
-                    y.round() as i32,
+                    round_f32_to_i32(*x),
+                    round_f32_to_i32(*y),
                     PLANT_WIDTH,
                     PLANT_HEIGHT,
                     PLANT_FLAGS,
@@ -160,7 +163,7 @@ impl World {
             match state {
                 0 => crate::blit(
                     &HOUSE1,
-                    x.round() as i32,
+                    round_f32_to_i32(x),
                     30 + HOUSE0_HEIGHT as i32 - HOUSE1_HEIGHT as i32,
                     HOUSE1_WIDTH,
                     HOUSE1_HEIGHT,
@@ -168,7 +171,7 @@ impl World {
                 ),
                 1 => crate::blit(
                     &HOUSE0,
-                    x.round() as i32,
+                    round_f32_to_i32(x),
                     30,
                     HOUSE0_WIDTH,
                     HOUSE0_HEIGHT,
@@ -210,6 +213,18 @@ impl World {
         if width == 0 {
             width = 1;
         }
-        crate::text(format!("{}", self.score), 160 - width * 7, 0);
+        temp = self.score;
+        if width < 15 {
+            for i in 0..width {
+                self.str_buf[width - 1 - i] = '0' as u8 + (temp % 10) as u8;
+                temp /= 10;
+            }
+            for i in width..16 {
+                self.str_buf[i] = 0;
+            }
+            crate::custom_text(self.str_buf, width, 160 - width as i32 * 8, 0);
+        } else {
+            crate::text("9999999999", 160 - 10 * 8, 0);
+        }
     }
 }
