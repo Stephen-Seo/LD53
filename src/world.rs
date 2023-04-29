@@ -132,7 +132,7 @@ impl World {
                     if self.rate_multiplier < 1f32 {
                         self.rate_multiplier = 1f32;
                     }
-                    self.status_text = Some(("Slow down!", 80));
+                    self.status_text = Some(("Miss!\nSlow down!", 80));
                 }
                 self.building.take();
                 self.is_in_range = false;
