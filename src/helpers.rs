@@ -1,5 +1,5 @@
-static mut car_state: u8 = 0;
-static mut car_state_frames: u8 = 0;
+static mut CAR_STATE: u8 = 0;
+static mut CAR_STATE_FRAMES: u8 = 0;
 const CAR_FRAMES: u8 = 10;
 
 pub fn fill(color: u8) {
@@ -29,15 +29,15 @@ pub fn draw_mouse() -> Option<(i16, i16)> {
 
 pub fn toggle_car_state() -> bool {
     unsafe {
-        car_state_frames += 1;
-        if car_state_frames >= CAR_FRAMES {
-            car_state_frames = 0;
-            if car_state == 0 {
-                car_state = 1;
+        CAR_STATE_FRAMES += 1;
+        if CAR_STATE_FRAMES >= CAR_FRAMES {
+            CAR_STATE_FRAMES = 0;
+            if CAR_STATE == 0 {
+                CAR_STATE = 1;
             } else {
-                car_state = 0;
+                CAR_STATE = 0;
             }
         }
-        car_state != 0
+        CAR_STATE != 0
     }
 }
