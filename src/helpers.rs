@@ -1,3 +1,7 @@
+static mut car_state: u8 = 0;
+static mut car_state_frames: u8 = 0;
+const CAR_FRAMES: u8 = 10;
+
 pub fn fill(color: u8) {
     if color > 3 {
         crate::trace("ERROR: Invalid value passed to helper \"fill\"");
@@ -20,5 +24,20 @@ pub fn draw_mouse() -> Option<(i16, i16)> {
         unsafe { *crate::DRAW_COLORS = 1 }
         crate::rect(i32::from(mouse_x) - 2, i32::from(mouse_y) - 2, 4, 4);
         None
+    }
+}
+
+pub fn toggle_car_state() -> bool {
+    unsafe {
+        car_state_frames += 1;
+        if car_state_frames >= CAR_FRAMES {
+            car_state_frames = 0;
+            if car_state == 0 {
+                car_state = 1;
+            } else {
+                car_state = 0;
+            }
+        }
+        car_state != 0
     }
 }

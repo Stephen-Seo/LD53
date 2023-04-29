@@ -4,6 +4,7 @@ mod wasm4;
 use wasm4::*;
 
 mod helpers;
+mod sprites;
 
 #[rustfmt::skip]
 const SMILEY: [u8; 8] = [
@@ -32,5 +33,25 @@ fn update() {
     blit(&SMILEY, 76, 76, 8, 8, BLIT_1BPP);
     text("Press X to blink", 16, 90);
 
+    unsafe { *DRAW_COLORS = 0x312 }
+    if helpers::toggle_car_state() {
+        blit(
+            &sprites::CAR0,
+            50,
+            40,
+            sprites::CAR0_WIDTH,
+            sprites::CAR0_HEIGHT,
+            sprites::CAR0_FLAGS,
+        );
+    } else {
+        blit(
+            &sprites::CAR1,
+            50,
+            40,
+            sprites::CAR1_WIDTH,
+            sprites::CAR1_HEIGHT,
+            sprites::CAR1_FLAGS,
+        );
+    }
     if let Some((x, y)) = helpers::draw_mouse() {}
 }
