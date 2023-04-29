@@ -1,4 +1,5 @@
 use crate::helpers::round_f32_to_i32;
+use crate::music::Music;
 use crate::sprites::*;
 use tinyrand::{Rand, StdRand};
 
@@ -26,6 +27,7 @@ pub struct World {
     rate_multiplier: f32,
     status_text: Option<(&'static str, u32)>,
     str_buf: [u8; 16],
+    music: Music,
 }
 
 impl World {
@@ -44,6 +46,7 @@ impl World {
             rate_multiplier: 1f32,
             status_text: None,
             str_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            music: Music::new(),
         }
     }
 
@@ -132,6 +135,7 @@ impl World {
             self.score += 1;
             self.rate_multiplier += MULTIPLIER_INC_RATE;
             self.status_text = Some(("Speed up!", 80));
+            self.music.start();
         }
 
         if let Some((_, t)) = &mut self.status_text {
@@ -140,6 +144,8 @@ impl World {
                 self.status_text.take();
             }
         }
+
+        self.music.update();
     }
 
     pub fn draw(&mut self) {

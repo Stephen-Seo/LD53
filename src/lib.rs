@@ -5,6 +5,7 @@ mod wasm4;
 use wasm4::*;
 
 mod helpers;
+mod music;
 mod sprites;
 mod world;
 
