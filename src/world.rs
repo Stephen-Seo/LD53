@@ -224,7 +224,7 @@ impl World {
             }
             crate::custom_text(self.str_buf, width, 160 - width as i32 * 8, 0);
         } else {
-            crate::text("9999999999", 160 - 10 * 8, 0);
+            crate::text("99999999999999", 160 - 10 * 8, 0);
         }
     }
 }
