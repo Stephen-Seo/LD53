@@ -1,11 +1,11 @@
+use crate::helpers::round_f32_to_i32;
 use crate::sprites::*;
 use tinyrand::{Rand, StdRand};
-use crate::helpers::round_f32_to_i32;
 
 const CAR_ANIM_FRAMES: u8 = 10;
 const MOVE_RATE: f32 = 1f32;
-const MULTIPLIER_INC_RATE: f32 = 0.07f32;
-const HOUSE_FRAMES: u32 = 150;
+const MULTIPLIER_INC_RATE: f32 = 0.13f32;
+const HOUSE_FRAMES: u32 = 100;
 const HOUSE_RANGE: f32 = 90f32;
 
 pub struct World {
@@ -20,6 +20,7 @@ pub struct World {
     //   - 1 fixed
     house: Option<(f32, u8)>,
     house_frames: u32,
+    house_frames_max: u32,
     is_in_range: bool,
     score: u64,
     rate_multiplier: f32,
@@ -37,6 +38,7 @@ impl World {
             shrubs: [None, None, None, None, None, None, None, None],
             house: None,
             house_frames: 0,
+            house_frames_max: HOUSE_FRAMES,
             is_in_range: false,
             score: 0,
             rate_multiplier: 1f32,
@@ -89,22 +91,33 @@ impl World {
 
         if self.house.is_none() {
             self.house_frames += 1;
-            if self.house_frames > HOUSE_FRAMES {
+            if self.house_frames > self.house_frames_max {
                 self.house_frames = 0;
                 self.house = Some((170f32, 0));
+                self.house_frames_max = HOUSE_FRAMES + (self.rand.next_u16() % 100) as u32;
             }
         } else {
             self.house.as_mut().unwrap().0 -= self.get_move_rate();
             let pos_ref: &f32 = &self.house.as_ref().unwrap().0;
             let state_ref: &u8 = &self.house.as_ref().unwrap().1;
-            if *state_ref == 0 && *pos_ref < HOUSE_RANGE && *pos_ref >= 0f32 {
+            if *state_ref == 0 && *pos_ref < HOUSE_RANGE && *pos_ref >= -20f32 {
                 self.is_in_range = true;
             } else if *pos_ref < -(HOUSE0_WIDTH as f32) {
+                if self.is_in_range {
+                    self.rate_multiplier /= 2f32;
+                    if self.rate_multiplier < 1f32 {
+                        self.rate_multiplier = 1f32;
+                    }
+                    self.status_text = Some(("Slow down!", 80));
+                }
                 self.house.take();
                 self.is_in_range = false;
             } else {
                 if self.is_in_range {
-                    self.rate_multiplier = 1f32;
+                    self.rate_multiplier /= 2f32;
+                    if self.rate_multiplier < 1f32 {
+                        self.rate_multiplier = 1f32;
+                    }
                     self.status_text = Some(("Slow down!", 80));
                 }
                 self.is_in_range = false;
