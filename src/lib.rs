@@ -3,6 +3,8 @@ mod alloc;
 mod wasm4;
 use wasm4::*;
 
+mod helpers;
+
 #[rustfmt::skip]
 const SMILEY: [u8; 8] = [
     0b11000011,
@@ -17,14 +19,18 @@ const SMILEY: [u8; 8] = [
 
 #[no_mangle]
 fn update() {
+    helpers::fill(3);
+
     unsafe { *DRAW_COLORS = 2 }
     text("Hello from Rust!", 10, 10);
 
     let gamepad = unsafe { *GAMEPAD1 };
     if gamepad & BUTTON_1 != 0 {
-        unsafe { *DRAW_COLORS = 4 }
+        unsafe { *DRAW_COLORS = 3 }
     }
 
     blit(&SMILEY, 76, 76, 8, 8, BLIT_1BPP);
     text("Press X to blink", 16, 90);
+
+    if let Some((x, y)) = helpers::draw_mouse() {}
 }
