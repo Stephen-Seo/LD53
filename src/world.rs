@@ -6,8 +6,28 @@ use tinyrand::{Rand, StdRand};
 const CAR_ANIM_FRAMES: u8 = 10;
 const MOVE_RATE: f32 = 1f32;
 const MULTIPLIER_INC_RATE: f32 = 0.13f32;
-const HOUSE_FRAMES: u32 = 100;
-const HOUSE_RANGE: f32 = 90f32;
+const SPEEDUP_INC: f32 = MULTIPLIER_INC_RATE * 3.5f32;
+const SLOWDOWN_DIV: f32 = 2f32;
+const BUILDING_FRAMES: u32 = 100;
+const BUILDING_RANGE: f32 = 90f32;
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+enum Building {
+    House,
+    SpeedUp,
+    SlowDown,
+}
+
+impl Building {
+    pub fn random(rand: &mut StdRand) -> Self {
+        match rand.next_u16() % 20 {
+            0..=9 => Building::House,
+            10..=14 => Building::SpeedUp,
+            15..=19 => Building::SlowDown,
+            _ => unreachable!(),
+        }
+    }
+}
 
 pub struct World {
     car_state: bool,
@@ -15,18 +35,18 @@ pub struct World {
     rand: StdRand,
     street_offset: f32,
     shrubs: [Option<(f32, f32)>; 8],
-    // x, state
+    // x, type, state
     // state:
     //   - 0 broken
     //   - 1 fixed
-    house: Option<(f32, u8)>,
-    house_frames: u32,
-    house_frames_max: u32,
+    building: Option<(f32, Building, u8)>,
+    building_frames: u32,
+    building_frames_max: u32,
     is_in_range: bool,
     score: u64,
     rate_multiplier: f32,
     status_text: Option<(&'static str, u32)>,
-    str_buf: [u8; 16],
+    score_buf: [u8; 16],
     music: Music,
 }
 
@@ -38,14 +58,14 @@ impl World {
             rand: StdRand::default(),
             street_offset: 0.0f32,
             shrubs: [None, None, None, None, None, None, None, None],
-            house: None,
-            house_frames: 0,
-            house_frames_max: HOUSE_FRAMES,
+            building: None,
+            building_frames: 0,
+            building_frames_max: BUILDING_FRAMES,
             is_in_range: false,
             score: 0,
             rate_multiplier: 1f32,
             status_text: None,
-            str_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            score_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             music: Music::new(),
         }
     }
@@ -92,20 +112,21 @@ impl World {
                 Some((180f32, (self.rand.next_u16() % 80 + 60) as f32));
         }
 
-        if self.house.is_none() {
-            self.house_frames += 1;
-            if self.house_frames > self.house_frames_max {
-                self.house_frames = 0;
-                self.house = Some((170f32, 0));
-                self.house_frames_max = HOUSE_FRAMES + (self.rand.next_u16() % 100) as u32;
+        if self.building.is_none() {
+            self.building_frames += 1;
+            if self.building_frames > self.building_frames_max {
+                self.building_frames = 0;
+                self.building = Some((170f32, Building::random(&mut self.rand), 0));
+                self.building_frames_max = BUILDING_FRAMES + (self.rand.next_u16() % 100) as u32;
             }
         } else {
-            self.house.as_mut().unwrap().0 -= self.get_move_rate();
-            let pos_ref: &f32 = &self.house.as_ref().unwrap().0;
-            let state_ref: &u8 = &self.house.as_ref().unwrap().1;
-            if *state_ref == 0 && *pos_ref < HOUSE_RANGE && *pos_ref >= -20f32 {
+            self.building.as_mut().unwrap().0 -= self.get_move_rate();
+            let pos_ref: &f32 = &self.building.as_ref().unwrap().0;
+            let building_type = self.building.as_ref().unwrap().1;
+            let state_ref: &u8 = &self.building.as_ref().unwrap().2;
+            if *state_ref == 0 && *pos_ref < BUILDING_RANGE && *pos_ref >= -20f32 {
                 self.is_in_range = true;
-            } else if *pos_ref < -(HOUSE0_WIDTH as f32) {
+            } else if building_type == Building::House && *pos_ref < -(HOUSE0_WIDTH as f32) {
                 if self.is_in_range {
                     self.rate_multiplier /= 2f32;
                     if self.rate_multiplier < 1f32 {
@@ -113,29 +134,44 @@ impl World {
                     }
                     self.status_text = Some(("Slow down!", 80));
                 }
-                self.house.take();
+                self.building.take();
                 self.is_in_range = false;
-            } else {
-                if self.is_in_range {
-                    self.rate_multiplier /= 2f32;
-                    if self.rate_multiplier < 1f32 {
-                        self.rate_multiplier = 1f32;
-                    }
-                    self.status_text = Some(("Slow down!", 80));
-                }
+            } else if (building_type == Building::SpeedUp || building_type == Building::SlowDown)
+                && *pos_ref < -(SPEEDUP_WIDTH as f32)
+            {
+                self.building.take();
+                self.status_text = Some(("It's OK!\nKeep delivering!", 80));
                 self.is_in_range = false;
             }
         }
 
-        if self.is_in_range
-            && ((gamepad & crate::BUTTON_1) != 0 || (mouse & crate::MOUSE_LEFT) != 0)
-        {
-            self.is_in_range = false;
-            self.house.as_mut().unwrap().1 = 1;
-            self.score += 1;
-            self.rate_multiplier += MULTIPLIER_INC_RATE;
-            self.status_text = Some(("Speed up!", 80));
-            self.music.start();
+        if (gamepad & crate::BUTTON_1) != 0 || (mouse & crate::MOUSE_LEFT) != 0 {
+            self.rand.next_u16();
+            if self.is_in_range {
+                self.is_in_range = false;
+                match self.building.as_ref().unwrap().1 {
+                    Building::House => {
+                        self.building.as_mut().unwrap().2 = 1;
+                        self.score += 1;
+                        self.rate_multiplier += MULTIPLIER_INC_RATE;
+                        self.status_text = Some(("Nice delivery!\nSpeed up!", 80));
+                    }
+                    Building::SpeedUp => {
+                        self.rate_multiplier += SPEEDUP_INC;
+                        self.status_text = Some(("Speed up!", 80));
+                        self.building.take();
+                    }
+                    Building::SlowDown => {
+                        self.rate_multiplier /= SLOWDOWN_DIV;
+                        if self.rate_multiplier < 1f32 {
+                            self.rate_multiplier = 1f32;
+                        }
+                        self.status_text = Some(("Slow down!", 80));
+                        self.building.take();
+                    }
+                }
+                self.music.start();
+            }
         }
 
         if let Some((_, t)) = &mut self.status_text {
@@ -178,25 +214,43 @@ impl World {
             }
         }
 
-        if let Some((x, state)) = self.house {
-            match state {
-                0 => crate::blit(
-                    &HOUSE1,
-                    round_f32_to_i32(x),
-                    30 + HOUSE0_HEIGHT as i32 - HOUSE1_HEIGHT as i32,
-                    HOUSE1_WIDTH,
-                    HOUSE1_HEIGHT,
-                    HOUSE1_FLAGS,
+        if let Some((x, building_type, state)) = &self.building {
+            match building_type {
+                Building::House => match state {
+                    0 => crate::blit(
+                        &HOUSE1,
+                        round_f32_to_i32(*x),
+                        30 + HOUSE0_HEIGHT as i32 - HOUSE1_HEIGHT as i32,
+                        HOUSE1_WIDTH,
+                        HOUSE1_HEIGHT,
+                        HOUSE1_FLAGS,
+                    ),
+                    1 => crate::blit(
+                        &HOUSE0,
+                        round_f32_to_i32(*x),
+                        30,
+                        HOUSE0_WIDTH,
+                        HOUSE0_HEIGHT,
+                        HOUSE0_FLAGS,
+                    ),
+                    _ => (),
+                },
+                Building::SpeedUp => crate::blit(
+                    &SPEEDUP,
+                    round_f32_to_i32(*x),
+                    50,
+                    SPEEDUP_WIDTH,
+                    SPEEDUP_HEIGHT,
+                    SPEEDUP_FLAGS,
                 ),
-                1 => crate::blit(
-                    &HOUSE0,
-                    round_f32_to_i32(x),
-                    30,
-                    HOUSE0_WIDTH,
-                    HOUSE0_HEIGHT,
-                    HOUSE0_FLAGS,
+                Building::SlowDown => crate::blit(
+                    &SLOWDOWN,
+                    round_f32_to_i32(*x),
+                    50,
+                    SLOWDOWN_WIDTH,
+                    SLOWDOWN_HEIGHT,
+                    SLOWDOWN_FLAGS,
                 ),
-                _ => (),
             }
         }
 
@@ -235,13 +289,13 @@ impl World {
         temp = self.score;
         if width < 15 {
             for i in 0..width {
-                self.str_buf[width - 1 - i] = '0' as u8 + (temp % 10) as u8;
+                self.score_buf[width - 1 - i] = '0' as u8 + (temp % 10) as u8;
                 temp /= 10;
             }
             for i in width..16 {
-                self.str_buf[i] = 0;
+                self.score_buf[i] = 0;
             }
-            crate::custom_text(self.str_buf, width, 160 - width as i32 * 8, 0);
+            crate::custom_text(self.score_buf, width, 160 - width as i32 * 8, 0);
         } else {
             crate::text("99999999999999", 160 - 10 * 8, 0);
         }
