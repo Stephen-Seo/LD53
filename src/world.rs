@@ -133,6 +133,7 @@ impl World {
                         self.rate_multiplier = 1f32;
                     }
                     self.status_text = Some(("Miss!\nSlow down!", 80));
+                    self.music.slow_down();
                 }
                 self.building.take();
                 self.is_in_range = false;
@@ -155,11 +156,13 @@ impl World {
                         self.score += 1;
                         self.rate_multiplier += MULTIPLIER_INC_RATE;
                         self.status_text = Some(("Nice delivery!\nSpeed up!", 80));
+                        self.music.speed_up();
                     }
                     Building::SpeedUp => {
                         self.rate_multiplier += SPEEDUP_INC;
                         self.status_text = Some(("Speed up!", 80));
                         self.building.take();
+                        self.music.speed_up();
                     }
                     Building::SlowDown => {
                         self.rate_multiplier /= SLOWDOWN_DIV;
@@ -168,6 +171,7 @@ impl World {
                         }
                         self.status_text = Some(("Slow down!", 80));
                         self.building.take();
+                        self.music.slow_down();
                     }
                 }
                 self.music.start();
