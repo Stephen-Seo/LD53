@@ -5,9 +5,9 @@ use tinyrand::{Rand, StdRand};
 
 const CAR_ANIM_FRAMES: u8 = 10;
 const MOVE_RATE: f32 = 1f32;
-const MULTIPLIER_INC_RATE: f32 = 0.13f32;
-const SPEEDUP_INC: f32 = MULTIPLIER_INC_RATE * 3.5f32;
-const SLOWDOWN_DIV: f32 = 2f32;
+const MULTIPLIER_INC_RATE: f32 = 0.25f32;
+const SPEEDUP_INC: f32 = 0.47f32;
+const SLOWDOWN_DIV: f32 = 1.3f32;
 const BUILDING_FRAMES: u32 = 100;
 const BUILDING_RANGE: f32 = 90f32;
 
@@ -134,7 +134,7 @@ impl World {
                     if self.rate_multiplier < 1f32 {
                         self.rate_multiplier = 1f32;
                     }
-                    self.status_text = Some(("Miss!\nSlow down!", 80));
+                    self.status_text = Some(("Miss!\nSlow down!", 120));
                     self.music.slow_down();
                 }
                 self.building.take();
@@ -143,11 +143,11 @@ impl World {
                 && *pos_ref < -(SPEEDUP_WIDTH as f32)
             {
                 self.building.take();
-                self.status_text = Some(("It's OK!\nKeep delivering!", 80));
+                self.status_text = Some(("It's OK!\nKeep delivering!", 120));
                 self.is_in_range = false;
             } else if building_type == Building::WrongHouse && *pos_ref < -(HOUSE0_WIDTH as f32) {
                 if self.is_in_range {
-                    self.status_text = Some(("OK!\nKeep going!", 80));
+                    self.status_text = Some(("OK!\nKeep going!", 120));
                 }
                 self.building.take();
                 self.is_in_range = false;
@@ -163,12 +163,12 @@ impl World {
                         self.building.as_mut().unwrap().2 = 1;
                         self.score += 1;
                         self.rate_multiplier += MULTIPLIER_INC_RATE;
-                        self.status_text = Some(("Nice delivery!\nSpeed up!", 80));
+                        self.status_text = Some(("Nice delivery!\nSpeed up!", 120));
                         self.music.speed_up();
                     }
                     Building::SpeedUp => {
                         self.rate_multiplier += SPEEDUP_INC;
-                        self.status_text = Some(("Speed up!", 80));
+                        self.status_text = Some(("Speed up!", 120));
                         self.building.take();
                         self.music.speed_up();
                     }
@@ -177,16 +177,17 @@ impl World {
                         if self.rate_multiplier < 1f32 {
                             self.rate_multiplier = 1f32;
                         }
-                        self.status_text = Some(("Slow down!", 80));
+                        self.status_text = Some(("Slow down!", 120));
                         self.building.take();
                         self.music.slow_down();
                     }
                     Building::WrongHouse => {
+                        self.building.as_mut().unwrap().2 = 1;
                         self.rate_multiplier /= SLOWDOWN_DIV;
                         if self.rate_multiplier < 1f32 {
                             self.rate_multiplier = 1f32;
                         }
-                        self.status_text = Some(("Oh no!\nSlow down!", 80));
+                        self.status_text = Some(("Oh no!\nSlow down!", 120));
                         self.music.slow_down();
                     }
                 }
@@ -304,7 +305,7 @@ impl World {
         }
 
         if let Some((s, t)) = self.status_text {
-            if (t / 10) % 2 == 0 {
+            if (t / 10) % 4 <= 1 {
                 crate::text(s, 20, 30);
             }
         }
