@@ -330,6 +330,12 @@ impl Music {
         //self.factor_speeding = Some(true);
         self.factor_speeding = None;
         self.factor = 1f32;
+        crate::tone(
+            Pitch::C2.to_u32() | (Pitch::C7.to_u32() << 16),
+            30 | (30 << 8),
+            40,
+            TONE_PULSE2,
+        );
     }
 
     pub fn slow_down(&mut self) {
