@@ -16,14 +16,16 @@ enum Building {
     House,
     SpeedUp,
     SlowDown,
+    WrongHouse,
 }
 
 impl Building {
     pub fn random(rand: &mut StdRand) -> Self {
-        match rand.next_u16() % 20 {
+        match rand.next_u16() % 30 {
             0..=9 => Building::House,
             10..=14 => Building::SpeedUp,
             15..=19 => Building::SlowDown,
+            20..=29 => Building::WrongHouse,
             _ => unreachable!(),
         }
     }
@@ -143,6 +145,12 @@ impl World {
                 self.building.take();
                 self.status_text = Some(("It's OK!\nKeep delivering!", 80));
                 self.is_in_range = false;
+            } else if building_type == Building::WrongHouse && *pos_ref < -(HOUSE0_WIDTH as f32) {
+                if self.is_in_range {
+                    self.status_text = Some(("OK!\nKeep going!", 80));
+                }
+                self.building.take();
+                self.is_in_range = false;
             }
         }
 
@@ -171,6 +179,14 @@ impl World {
                         }
                         self.status_text = Some(("Slow down!", 80));
                         self.building.take();
+                        self.music.slow_down();
+                    }
+                    Building::WrongHouse => {
+                        self.rate_multiplier /= SLOWDOWN_DIV;
+                        if self.rate_multiplier < 1f32 {
+                            self.rate_multiplier = 1f32;
+                        }
+                        self.status_text = Some(("Oh no!\nSlow down!", 80));
                         self.music.slow_down();
                     }
                 }
@@ -220,6 +236,14 @@ impl World {
 
         if let Some((x, building_type, state)) = &self.building {
             match building_type {
+                Building::WrongHouse => crate::blit(
+                    &HOUSE0,
+                    round_f32_to_i32(*x),
+                    30,
+                    HOUSE0_WIDTH,
+                    HOUSE0_HEIGHT,
+                    HOUSE0_FLAGS,
+                ),
                 Building::House => match state {
                     0 => crate::blit(
                         &HOUSE1,
@@ -268,7 +292,11 @@ impl World {
             unsafe {
                 *crate::DRAW_COLORS = 0x1;
             }
-            crate::text("Tap or Press X!", 5, 5);
+            if let Some((_, Building::WrongHouse, _)) = self.building {
+                crate::text("Don't Press!", 5, 5);
+            } else {
+                crate::text("Tap or Press X!", 5, 5);
+            }
         }
 
         unsafe {
