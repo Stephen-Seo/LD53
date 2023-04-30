@@ -1,7 +1,7 @@
 use crate::helpers::round_f32_to_i32;
 use crate::music::Music;
 use crate::sprites::*;
-use tinyrand::{Rand, StdRand};
+use tinyrand::{Rand, Seeded, StdRand};
 
 const CAR_ANIM_FRAMES: u8 = 10;
 const MOVE_RATE: f32 = 1f32;
@@ -10,6 +10,8 @@ const SPEEDUP_INC: f32 = 0.47f32;
 const SLOWDOWN_DIV: f32 = 1.3f32;
 const BUILDING_FRAMES: u32 = 100;
 const BUILDING_RANGE: f32 = 90f32;
+const DAMAGED_FRAMES_MAX: u16 = 120;
+const GAMEOVER_SLOWDOWN_RATE: f32 = 0.01f32;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 enum Building {
@@ -50,6 +52,8 @@ pub struct World {
     status_text: Option<(&'static str, u32)>,
     score_buf: [u8; 16],
     music: Music,
+    lives: u8,
+    damaged_frames: u16,
 }
 
 impl World {
@@ -57,7 +61,7 @@ impl World {
         World {
             car_state: false,
             car_frames: 0,
-            rand: StdRand::default(),
+            rand: StdRand::seed(3),
             street_offset: 0.0f32,
             shrubs: [None, None, None, None, None, None, None, None],
             building: None,
@@ -66,10 +70,44 @@ impl World {
             is_in_range: false,
             score: 0,
             rate_multiplier: 1f32,
-            status_text: None,
+            status_text: Some(("Ludum Dare 53:\nHouse Delivery!\n\nBy: BurnedKirby", 300)),
             score_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             music: Music::new(),
+            lives: 3,
+            damaged_frames: 0,
         }
+    }
+
+    fn reset(&mut self) {
+        self.car_state = false;
+        self.car_frames = 0;
+        self.street_offset = 0f32;
+        for shrub in &mut self.shrubs {
+            shrub.take();
+        }
+        self.building = None;
+        self.building_frames = 0;
+        self.building_frames_max = BUILDING_FRAMES;
+        self.is_in_range = false;
+        self.score = 0;
+        self.rate_multiplier = 1f32;
+        self.status_text = Some(("Ludum Dare 53:\nHouse Delivery!\n\nBy: BurnedKirby", 300));
+        for score in &mut self.score_buf {
+            *score = 0;
+        }
+        self.music.reset();
+        self.lives = 3;
+        self.damaged_frames = 0;
+    }
+
+    pub fn decrement_lives(&mut self) -> bool {
+        if self.lives > 0 {
+            self.lives -= 1;
+            if self.lives == 0 {
+                self.music.gameover();
+            }
+        }
+        self.lives != 0
     }
 
     pub fn get_move_rate(&self) -> f32 {
@@ -90,9 +128,26 @@ impl World {
             }
         }
 
+        if self.rate_multiplier <= 0f32 {
+            self.car_state = true;
+        }
+
         self.street_offset -= self.get_move_rate();
         if self.street_offset <= -45f32 {
             self.street_offset += 45f32;
+        }
+
+        self.music.update();
+
+        if let Some((_, t)) = &mut self.status_text {
+            *t -= 1;
+            if *t == 0 {
+                self.status_text.take();
+            }
+        }
+
+        if self.damaged_frames != 0 {
+            self.damaged_frames -= 1;
         }
 
         let mut empty_shrub_exists: Option<usize> = None;
@@ -109,6 +164,24 @@ impl World {
             }
         }
 
+        {
+            let move_rate = self.get_move_rate();
+            if let Some((x, _, _)) = &mut self.building {
+                *x -= move_rate;
+            }
+        }
+
+        if self.lives == 0 {
+            self.rate_multiplier -= GAMEOVER_SLOWDOWN_RATE;
+            if self.rate_multiplier < 0f32 {
+                self.rate_multiplier = 0f32;
+            }
+            if (gamepad & crate::BUTTON_2) != 0 {
+                self.reset();
+            }
+            return;
+        }
+
         if empty_shrub_exists.is_some() && self.rand.next_u16() % 32 == 0 {
             self.shrubs[empty_shrub_exists.unwrap()] =
                 Some((180f32, (self.rand.next_u16() % 80 + 60) as f32));
@@ -122,7 +195,6 @@ impl World {
                 self.building_frames_max = BUILDING_FRAMES + (self.rand.next_u16() % 100) as u32;
             }
         } else {
-            self.building.as_mut().unwrap().0 -= self.get_move_rate();
             let pos_ref: &f32 = &self.building.as_ref().unwrap().0;
             let building_type = self.building.as_ref().unwrap().1;
             let state_ref: &u8 = &self.building.as_ref().unwrap().2;
@@ -130,12 +202,16 @@ impl World {
                 self.is_in_range = true;
             } else if building_type == Building::House && *pos_ref < -(HOUSE0_WIDTH as f32) {
                 if self.is_in_range {
-                    self.rate_multiplier /= 2f32;
-                    if self.rate_multiplier < 1f32 {
-                        self.rate_multiplier = 1f32;
+                    if self.decrement_lives() {
+                        self.rate_multiplier /= 2f32;
+                        if self.rate_multiplier < 1f32 {
+                            self.rate_multiplier = 1f32;
+                        }
+                        self.status_text = Some(("Miss!\nSlow down!", 120));
+                        self.music.slow_down();
+                        self.damaged_frames = DAMAGED_FRAMES_MAX;
                     }
-                    self.status_text = Some(("Miss!\nSlow down!", 120));
-                    self.music.slow_down();
+                    self.music.damaged();
                 }
                 self.building.take();
                 self.is_in_range = false;
@@ -183,26 +259,21 @@ impl World {
                     }
                     Building::WrongHouse => {
                         self.building.as_mut().unwrap().2 = 1;
-                        self.rate_multiplier /= SLOWDOWN_DIV;
-                        if self.rate_multiplier < 1f32 {
-                            self.rate_multiplier = 1f32;
+                        if self.decrement_lives() {
+                            self.rate_multiplier /= SLOWDOWN_DIV;
+                            if self.rate_multiplier < 1f32 {
+                                self.rate_multiplier = 1f32;
+                            }
+                            self.status_text = Some(("Oh no!\nSlow down!", 120));
+                            self.music.slow_down();
+                            self.damaged_frames = DAMAGED_FRAMES_MAX;
                         }
-                        self.status_text = Some(("Oh no!\nSlow down!", 120));
-                        self.music.slow_down();
+                        self.music.damaged();
                     }
                 }
                 self.music.start();
             }
         }
-
-        if let Some((_, t)) = &mut self.status_text {
-            *t -= 1;
-            if *t == 0 {
-                self.status_text.take();
-            }
-        }
-
-        self.music.update();
     }
 
     pub fn draw(&mut self) {
@@ -283,10 +354,12 @@ impl World {
             }
         }
 
-        if self.car_state {
-            crate::blit(&CAR0, 10, 103, CAR0_WIDTH, CAR0_HEIGHT, CAR0_FLAGS);
-        } else {
-            crate::blit(&CAR1, 10, 103, CAR1_WIDTH, CAR1_HEIGHT, CAR1_FLAGS);
+        if self.damaged_frames % 4 < 2 || self.lives == 0 {
+            if self.car_state {
+                crate::blit(&CAR0, 10, 103, CAR0_WIDTH, CAR0_HEIGHT, CAR0_FLAGS);
+            } else {
+                crate::blit(&CAR1, 10, 103, CAR1_WIDTH, CAR1_HEIGHT, CAR1_FLAGS);
+            }
         }
 
         if self.is_in_range {
@@ -294,14 +367,26 @@ impl World {
                 *crate::DRAW_COLORS = 0x1;
             }
             if let Some((_, Building::WrongHouse, _)) = self.building {
-                crate::text("Don't Press!", 5, 5);
+                crate::text("Don't Press!", 5, 10);
+            } else if let Some((_, Building::SpeedUp, _)) = self.building {
+                crate::text("Tap or Press X?", 5, 10);
+            } else if let Some((_, Building::SlowDown, _)) = self.building {
+                crate::text("Tap or Press X?", 5, 10);
             } else {
-                crate::text("Tap or Press X!", 5, 5);
+                crate::text("Tap or Press X!", 5, 10);
             }
         }
 
         unsafe {
             *crate::DRAW_COLORS = 0x1;
+        }
+
+        match self.lives {
+            3 => crate::text("3 HP", 0, 0),
+            2 => crate::text("2 HP", 0, 0),
+            1 => crate::text("1 HP", 0, 0),
+            0 => crate::text("0 HP", 0, 0),
+            _ => unreachable!(),
         }
 
         if let Some((s, t)) = self.status_text {
@@ -328,9 +413,23 @@ impl World {
             for i in width..16 {
                 self.score_buf[i] = 0;
             }
-            crate::custom_text(self.score_buf, width, 160 - width as i32 * 8, 0);
+            if self.lives > 0 {
+                crate::custom_text(self.score_buf, width, 160 - width as i32 * 8, 0);
+            } else {
+                crate::text("GAME OVER", 40, 40);
+                crate::text("Score:", 50, 50);
+                crate::custom_text(self.score_buf, width, 70 - (width / 2) as i32 * 8, 60);
+                crate::text("Press Z to restart", 10, 70);
+            }
         } else {
-            crate::text("99999999999999", 160 - 10 * 8, 0);
+            if self.lives > 0 {
+                crate::text("99999999999999", 160 - 10 * 8, 0);
+            } else {
+                crate::text("GAME OVER", 40, 40);
+                crate::text("Score:", 50, 50);
+                crate::text("99999999999999", 70 - 7 * 8, 60);
+                crate::text("Press Z to restart", 10, 70);
+            }
         }
     }
 }

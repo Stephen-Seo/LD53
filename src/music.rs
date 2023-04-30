@@ -309,6 +309,7 @@ pub struct Music {
     factor: f32,
     factor_slowing: Option<bool>,
     factor_speeding: Option<bool>,
+    game_over: bool,
 }
 
 impl Music {
@@ -322,7 +323,24 @@ impl Music {
             factor: 1f32,
             factor_slowing: None,
             factor_speeding: None,
+            game_over: false,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.started = false;
+        self.pulse1_time = 0f32;
+        self.pulse1_idx = 0;
+        self.tri_time = 0f32;
+        self.tri_idx = 0;
+        self.factor = 1f32;
+        self.factor_slowing = None;
+        self.factor_speeding = None;
+        self.game_over = false;
+    }
+
+    pub fn gameover(&mut self) {
+        self.game_over = true;
     }
 
     pub fn speed_up(&mut self) {
@@ -344,6 +362,15 @@ impl Music {
         self.factor = 1f32;
     }
 
+    pub fn damaged(&self) {
+        crate::tone(
+            Pitch::D5.to_u32() | (Pitch::D1.to_u32() << 16),
+            30 << 8,
+            60,
+            TONE_NOISE,
+        )
+    }
+
     fn get_factor(&self) -> f32 {
         self.factor
     }
@@ -357,32 +384,39 @@ impl Music {
             return;
         }
 
-        if let Some(not_reverting) = &mut self.factor_slowing {
-            if *not_reverting {
-                self.factor -= SLOWDOWN_RATE;
-                if self.factor <= SLOWDOWN_MIN {
-                    *not_reverting = false;
-                    self.factor = SLOWDOWN_MIN;
-                }
-            } else {
-                self.factor += SLOWDOWN_REVERT_RATE;
-                if self.factor >= 1f32 {
-                    self.factor = 1f32;
-                    self.factor_slowing.take();
-                }
+        if self.game_over {
+            self.factor -= SLOWDOWN_RATE;
+            if self.factor <= 0f32 {
+                self.reset();
             }
-        } else if let Some(not_reverting) = &mut self.factor_speeding {
-            if *not_reverting {
-                self.factor += SPEEDUP_RATE;
-                if self.factor >= SPEEDUP_MAX {
-                    *not_reverting = false;
-                    self.factor = SPEEDUP_MAX;
+        } else {
+            if let Some(not_reverting) = &mut self.factor_slowing {
+                if *not_reverting {
+                    self.factor -= SLOWDOWN_RATE;
+                    if self.factor <= SLOWDOWN_MIN {
+                        *not_reverting = false;
+                        self.factor = SLOWDOWN_MIN;
+                    }
+                } else {
+                    self.factor += SLOWDOWN_REVERT_RATE;
+                    if self.factor >= 1f32 {
+                        self.factor = 1f32;
+                        self.factor_slowing.take();
+                    }
                 }
-            } else {
-                self.factor -= SPEEDUP_REVERT_RATE;
-                if self.factor <= 1f32 {
-                    self.factor = 1f32;
-                    self.factor_speeding.take();
+            } else if let Some(not_reverting) = &mut self.factor_speeding {
+                if *not_reverting {
+                    self.factor += SPEEDUP_RATE;
+                    if self.factor >= SPEEDUP_MAX {
+                        *not_reverting = false;
+                        self.factor = SPEEDUP_MAX;
+                    }
+                } else {
+                    self.factor -= SPEEDUP_REVERT_RATE;
+                    if self.factor <= 1f32 {
+                        self.factor = 1f32;
+                        self.factor_speeding.take();
+                    }
                 }
             }
         }
