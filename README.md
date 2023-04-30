@@ -1,4 +1,4 @@
-# ld53
+# Ludum Dare 53: House Delivery
 
 A game written in Rust for the [WASM-4](https://wasm4.org) fantasy console.
 
