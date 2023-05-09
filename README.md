@@ -24,6 +24,7 @@ For more info about setting up WASM-4, see the [quickstart guide](https://wasm4.
 - [Github Source](https://github.com/Stephen-Seo/LD53)
 - [Gitea Source (self-hosted)](https://git.seodisparate.com/stephenseo/LD53)
 - [HTML WASM game (self-hosted)](https://burnedkirby.com/ld53)
+- [HTML WASM game with latest commits](https://burnedkirby.com/ld53_postjam)
 - [Documentation](https://wasm4.org/docs): Learn more about WASM-4.
 - [Snake Tutorial](https://wasm4.org/docs/tutorials/snake/goal): Learn how to build a complete game
   with a step-by-step tutorial.
