@@ -2,6 +2,11 @@
 
 A game written in Rust for the [WASM-4](https://wasm4.org) fantasy console.
 
+## Updates
+
+The `main` branch tracks the latest commits. To see the repository as it was
+when LD53's compo deadline ended, view the repository's `ldjam_compo` tag.
+
 ## Building
 
 Build the cart by running:
