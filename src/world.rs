@@ -230,7 +230,7 @@ impl World {
             }
         }
 
-        if (gamepad & crate::BUTTON_1) != 0 || (mouse & crate::MOUSE_LEFT) != 0 {
+        if (gamepad & crate::BUTTON_1) != 0 {
             self.rand.next_u16();
             if self.is_in_range {
                 self.is_in_range = false;
@@ -369,11 +369,11 @@ impl World {
             if let Some((_, Building::WrongHouse, _)) = self.building {
                 crate::text("Don't Press!", 5, 10);
             } else if let Some((_, Building::SpeedUp, _)) = self.building {
-                crate::text("Tap or Press X?", 5, 10);
+                crate::text(b"Press \x80?", 5, 10);
             } else if let Some((_, Building::SlowDown, _)) = self.building {
-                crate::text("Tap or Press X?", 5, 10);
+                crate::text(b"Press \x80?", 5, 10);
             } else {
-                crate::text("Tap or Press X!", 5, 10);
+                crate::text(b"Press \x80!", 5, 10);
             }
         }
 
@@ -419,7 +419,7 @@ impl World {
                 crate::text("GAME OVER", 40, 40);
                 crate::text("Score:", 50, 50);
                 crate::custom_text(self.score_buf, width, 70 - (width / 2) as i32 * 8, 60);
-                crate::text("Press Z to restart", 10, 70);
+                crate::text(b"Press \x81 to restart", 10, 70);
             }
         } else {
             if self.lives > 0 {
@@ -428,7 +428,7 @@ impl World {
                 crate::text("GAME OVER", 40, 40);
                 crate::text("Score:", 50, 50);
                 crate::text("99999999999999", 70 - 7 * 8, 60);
-                crate::text("Press Z to restart", 10, 70);
+                crate::text(b"Press \x81 to restart", 10, 70);
             }
         }
     }

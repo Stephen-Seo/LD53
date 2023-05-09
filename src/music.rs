@@ -363,12 +363,14 @@ impl Music {
     }
 
     pub fn damaged(&self) {
-        crate::tone(
-            Pitch::D5.to_u32() | (Pitch::D1.to_u32() << 16),
-            30 << 8,
-            60,
-            TONE_NOISE,
-        )
+        if self.started {
+            crate::tone(
+                Pitch::D5.to_u32() | (Pitch::D1.to_u32() << 16),
+                30 << 8,
+                60,
+                TONE_NOISE,
+            )
+        }
     }
 
     fn get_factor(&self) -> f32 {
