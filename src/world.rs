@@ -70,7 +70,10 @@ impl World {
             is_in_range: false,
             score: 0,
             rate_multiplier: 1f32,
-            status_text: Some(("Ludum Dare 53:\nHouse Delivery!\n\nBy: BurnedKirby", 300)),
+            status_text: Some((
+                "Ludum Dare 53:\nHouse Delivery!\n\nBy: BurnedKirby\n\nClick to focus!",
+                300,
+            )),
             score_buf: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             music: Music::new(),
             lives: 3,
